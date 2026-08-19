@@ -69,8 +69,7 @@ Google Gemini API Key: Get your key from Google AI Studio
 🚀 Installation & Setup
 Step 1: Clone the Repository
 
-git clone [https://github.com/YOUR_GITHUB_USERNAME/Tone_transformer.git](https://github.com/YOUR_GITHUB_USERNAME/Tone_transformer.git)
-cd Tone_transformer
+git clone https://github.com/aniqa-imran/Automated-Copywriting-N-Tone-Transformer
 Step 2: Create a Virtual Environment (Optional but Recommended)
 Bash
 # Windows
