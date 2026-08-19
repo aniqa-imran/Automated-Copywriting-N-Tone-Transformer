@@ -11,8 +11,6 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY missing in .env file!")
 
-client = genai.Client(api_key=API_KEY)
-
 def build_master_prompt(product_name: str, description: str, platform: str, tone: str) -> str:
     return f"""
     You are an expert enterprise copywriter.
@@ -33,7 +31,7 @@ async def generate_single_copy_async(
     platform: str,
     tone: str,
     temperature: float = 0.7,
-    max_tokens: int = 1000
+    max_tokens: int = 1500
 ) -> CopywritingOutput:
     async with semaphore:
         prompt = build_master_prompt(product_name, description, platform, tone)
@@ -46,22 +44,24 @@ async def generate_single_copy_async(
         )
         
         try:
+            # Fresh client per request to avoid event loop mismatch
+            client = genai.Client(api_key=API_KEY)
+            
             response = await client.aio.models.generate_content(
                 model="gemini-3.6-flash",
                 contents=prompt,
                 config=config
             )
             
-            # Check if response text is valid
             if not response.text or not response.text.strip():
-                raise ValueError("API returned an empty response. Check API Key or quota limits.")
+                raise ValueError("API returned an empty response.")
                 
             return CopywritingOutput.model_validate_json(response.text)
         except Exception as e:
             print(f"Generation Error: {e}")
             raise e
 
-async def run_batch_pipeline(items: list[dict], max_concurrency: int = 3, temperature: float = 0.7, max_tokens: int = 1000):
+async def run_batch_pipeline(items: list[dict], max_concurrency: int = 3, temperature: float = 0.7, max_tokens: int = 1500):
     semaphore = asyncio.Semaphore(max_concurrency)
     tasks = [
         generate_single_copy_async(
