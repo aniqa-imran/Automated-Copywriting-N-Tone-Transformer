@@ -1,0 +1,7 @@
+streamlit
+streamlit-option-menu
+google-genai
+pydantic
+tenacity
+python-dotenv
+pandas
