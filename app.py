@@ -25,6 +25,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Helper function to execute async tasks safely in Streamlit
+def run_async(coro):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
 with st.sidebar:
     selected_mode = option_menu(None, ["Single Generation", "Bulk Batch Processing"], icons=["lightning", "table"], default_index=0)
     st.markdown("---")
@@ -48,7 +57,7 @@ if selected_mode == "Single Generation":
             else:
                 with st.spinner("Processing through Async Engine & Pydantic Validator..."):
                     payload = [{"product_name": prod_name, "description": raw_desc, "platform": platform_choice, "tone": tone_choice}]
-                    results = asyncio.run(run_batch_pipeline(payload, max_concurrency=1, temperature=temp_val, max_tokens=max_tokens_val))
+                    results = run_async(run_batch_pipeline(payload, max_concurrency=1, temperature=temp_val, max_tokens=max_tokens_val))
                     res = results[0]
                     
                     if isinstance(res, CopywritingOutput):
@@ -71,10 +80,23 @@ elif selected_mode == "Bulk Batch Processing":
         st.dataframe(df.head(), use_container_width=True)
         if st.button("Run Bulk Engine"):
             items = df.to_dict(orient="records")
-            results = asyncio.run(run_batch_pipeline(items, max_concurrency=concurrency_limit, temperature=temp_val, max_tokens=max_tokens_val))
             
-            df["generated_headline"] = [r.headline if isinstance(r, CopywritingOutput) else "Error" for r in results]
-            df["generated_body"] = [r.body_text if isinstance(r, CopywritingOutput) else str(r) for r in results]
+            with st.spinner("Processing batch jobs asynchronously..."):
+                results = run_async(run_batch_pipeline(items, max_concurrency=concurrency_limit, temperature=temp_val, max_tokens=max_tokens_val))
+            
+            headlines = []
+            bodies = []
+            
+            for r in results:
+                if isinstance(r, CopywritingOutput):
+                    headlines.append(r.headline)
+                    bodies.append(r.body_text)
+                else:
+                    headlines.append("Error Generating Content")
+                    bodies.append(str(r))
+            
+            df["generated_headline"] = headlines
+            df["generated_body"] = bodies
             
             st.success("Batch Processing Completed!")
             st.dataframe(df, use_container_width=True)
